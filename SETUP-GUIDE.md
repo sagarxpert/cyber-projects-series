@@ -1,9 +1,9 @@
 <div align="center">
 
 # 🛠️ Cybersecurity Lab Setup Guide
-### Build a hacker-grade VirtualBox + Kali Linux lab — from scratch
+### Build a hacker-grade VMware + Kali Linux lab — from scratch
 
-![VirtualBox](https://img.shields.io/badge/VirtualBox-183A61?style=for-the-badge&logo=virtualbox&logoColor=white)
+![VMware](https://img.shields.io/badge/VMware_Workstation-607078?style=for-the-badge&logo=vmware&logoColor=white)
 ![Kali Linux](https://img.shields.io/badge/Kali_Linux-557C94?style=for-the-badge&logo=kalilinux&logoColor=white)
 ![Difficulty](https://img.shields.io/badge/Difficulty-🟢_Easy-brightgreen?style=for-the-badge)
 
@@ -28,7 +28,7 @@ By the end of this guide, you'll have:
 |:---:|:---:|
 | RAM | 8 GB or more |
 | Storage | 256 GB SSD or more |
-| CPU | Core i3 / i5 or equivalent |
+| CPU | Core i3 / i5 or equivalent (VT-x/AMD-V enabled in BIOS) |
 
 </div>
 
@@ -40,10 +40,10 @@ By the end of this guide, you'll have:
 ## 📋 Progress Checklist
 
 - [ ] Step 1 — Install 7-Zip
-- [ ] Step 2 — Install VirtualBox
-- [ ] Step 3 — Create NAT Network
+- [ ] Step 2 — Install VMware Workstation
+- [ ] Step 3 — Configure the NAT network (VMnet8)
 - [ ] Step 4 — Import Kali Linux
-- [ ] Step 5 — Attach Kali to NAT Network
+- [ ] Step 5 — Attach Kali to the NAT network
 - [ ] Step 6 — Set Kali's static IP
 - [ ] Step 7 — Enable clipboard & drag/drop
 - [ ] Step 8 — Enable shared folders
@@ -61,38 +61,40 @@ Needed to extract the Kali Linux archive later.
 
 <br>
 
-### `02` Install VirtualBox
-Grab the latest recommended version for your OS.
+### `02` Install VMware Workstation
+Grab **VMware Workstation Pro** (free for personal use) or **Player**.
 
-📥 **[Download VirtualBox →](https://virtualbox.org/wiki/Downloads)**
+📥 **[Download VMware Workstation →](https://www.vmware.com/products/desktop-hypervisor/workstation-and-fusion)**
 
 <br>
 
-### `03` Create a NAT Network
-This gives your VM internet access while keeping it isolated from your host.
+### `03` Configure the NAT Network (VMnet8)
+VMware uses **VMnet8** as its default NAT network you just need to set the subnet.
 
-1. Open VirtualBox → **File → Tools → Network**
-2. Go to the **NAT Networks** tab → click **Add**
-3. Configure:
+1. Open **Edit → Virtual Network Editor** *(may need "Change Settings" / run as Administrator on Windows)*
+2. Select **VMnet8** (Type: `NAT`)
+3. Click **NAT Settings** and confirm/set the subnet:
 
 ```
-IPv4 Prefix : 10.0.0.0/24
-Enable DHCP : ✅
+Subnet IP     : 10.0.0.0
+Subnet Mask   : 255.255.255.0
 ```
+
+4. Ensure **"Use local DHCP service to distribute IP addresses to VMs"** is checked (or leave unchecked if you plan to assign static IPs manually, as in Step 6)
 
 <br>
 
 ### `04` Download & Import Kali Linux
-📥 **[Get Kali Linux →](https://kali.org/get-kali)** *(grab the VirtualBox pre-built image)*
+📥 **[Get Kali Linux →](https://kali.org/get-kali)** *(grab the VMware pre-built image)*
 
-Import it via **File → Import Appliance**.
+Extract it with 7-Zip, then **File → Open** in VMware and select the `.vmx` file or use **File → Import** for an OVA.
 
 <br>
 
 ### `05` Attach Kali to the NAT Network
-1. Select your Kali VM → **Settings → Network**
-2. **Adapter 1 → Attached to:** `NAT Network`
-3. **Name:** the network you created in Step 3
+1. Select your Kali VM → **VM → Settings → Network Adapter**
+2. Choose **NAT** *(this maps to VMnet8)*
+3. Click **OK**
 
 <br>
 
@@ -112,22 +114,29 @@ Inside Kali → top-right network icon → **Edit Connections → IPv4 Settings*
 </div>
 
 > [!TIP]
-> If the internet doesn't work with `8.8.8.8`, switch the DNS server to `10.0.0.1` instead.
+> If the internet doesn't work with `8.8.8.8`, switch the DNS server to `10.0.0.1` instead. On VMware, `10.0.0.1` is typically also the NAT gateway assigned to VMnet8.
 
 <br>
 
 ### `07` Enable Clipboard & Drag-and-Drop
-**Settings → General → Advanced**
+**VM → Settings → Options → Guest Isolation**
 
 ```
-Shared Clipboard : Bidirectional
-Drag'n'Drop      : Bidirectional
+Enable drag and drop     : ✅
+Enable copy and paste    : ✅
 ```
+
+> [!NOTE]
+> This requires **VMware Tools** to be installed inside the Kali guest. Install it via **VM → Install VMware Tools** if it's not already present.
 
 <br>
 
 ### `08` Enable Shared Folders
-**Settings → Shared Folders** → add your host's `Downloads` folder → check **Auto-mount** ✅
+**VM → Settings → Options → Shared Folders**
+
+1. Select **Always enabled**
+2. Click **Add** → point it to your host's `Downloads` folder
+3. Shared folders will appear inside Kali under `/mnt/hgfs/`
 
 <br>
 
@@ -146,18 +155,18 @@ ping -c 4 google.com
 ### `10` Take a Snapshot
 Lock in your clean, working state so you can always roll back.
 
-**Machine → Take Snapshot**
+**VM → Snapshot → Take Snapshot**
 
 ---
 
 ## ⚠️ Troubleshooting: No Internet in Kali?
 
 > [!WARNING]
-> This is a **known issue** on VirtualBox v7 + Kali 2026.1 or newer.
+> Common causes: VMnet8 misconfiguration, VMware Tools missing, or a stale IP lease.
 
 Try these, in order:
 
-1. Double-check the NAT Network was created correctly *(Step 3)*
+1. Reopen **Virtual Network Editor** and confirm VMnet8's subnet is exactly `10.0.0.0/24`
 2. Confirm no other VM on the same network is also using `10.0.0.2`
 3. Run these three commands inside Kali, then restart it:
 
@@ -167,13 +176,13 @@ sudo nmcli connection down "Wired connection 1"
 sudo nmcli connection up "Wired connection 1"
 ```
 
-4. Restart VirtualBox, then your host machine, if the issue persists
+4. Restart the **VMware NAT service** on your host (Windows: `services.msc` → restart *VMware NAT Service*), then restart VMware and your host machine if the issue persists
 
 ---
 
 ## 🔮 Optional Next Step
 
-Once this base lab is stable, expand it with additional VMs (Windows 10/11, Server 2016, Android) — all on the same NAT range. Sets you up for multi-machine attack/defense scenarios in later projects of this series.
+Once this base lab is stable, expand it with additional VMs (Windows 10/11, Server 2016, Android) — all on the same NAT range (VMnet8), or add a second **Host-only** network (e.g. VMnet2) for isolated attack/defense scenarios in later projects of this series.
 
 ---
 
